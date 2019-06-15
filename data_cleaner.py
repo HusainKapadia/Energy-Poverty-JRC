@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import glob
 import os
 
-# solar_dir = './run_household_solar/*'
+solar_dir = './run_household_solar/*'
 no_solar_dir = './runs_households_no_solar/*'
 
 # change the name for different directory
@@ -120,8 +120,45 @@ def clean_power_solarmod(household_list):
     #plt.show()
 
 
+def clean_consumption(household_list, solar=True):
+    name = f'consumption.2016'
+
+    for dir in household_list:
+        fname = f'{dir}/{name}'
+        print(fname)
+        with open(fname, 'r') as f:
+            consumption_data = f.read()
+
+        splitted_list = consumption_data.split()
+        print(splitted_list[8:15])
+        try:
+            households = splitted_list[8:15].index("1/1")
+            print(households)
+        except ValueError:
+            households = splitted_list[8:15].index("1/2")
+            print(households)
+
+        sub_dir = dir.split("\\")[1]
+        print(sub_dir)
+        if solar:
+            if not os.path.exists(f'./useful_solar/{sub_dir}'):
+                os.makedirs(f'./useful_solar/{sub_dir}')
+            with open(f'./useful_solar/{sub_dir}/num_people.txt', 'w') as f:
+                f.write(str(households))
+        else:
+            if not os.path.exists(f'./useful_no_solar/{sub_dir}'):
+                os.makedirs(f'./useful_no_solar/{sub_dir}')
+            with open(f'./useful_no_solar/{sub_dir}/num_people.txt', 'w') as f:
+                f.write(str(households))
+
+
+
 # clean_grid_bal(household_list)
 
-clean_power_household(household_list[1:], solar=False)
+# if solar = True, directly use household_list, if False, use household_list[1:], it still keeps 1 cfg.log file here
+# idk why
+# clean_power_household(household_list[1:], solar=False)
 
-#clean_power_solarmod(household_list)
+# clean_power_solarmod(household_list)
+
+clean_consumption(household_list[1:], solar=False)
