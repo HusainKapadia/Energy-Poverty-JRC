@@ -106,8 +106,8 @@ def read_data(household=1, typehh=0):
         return data[-30:]
 
 # Readjust times
-all_production = all_production()
-all_consumption = all_consumption()
+all_production = all_productionf()
+all_consumption = all_consumptionf()
 all_production.index = all_production.index + timedelta(days=(3*365) + 1)
 all_consumption.index = all_consumption.index + timedelta(days=(3*365) + 1)
 
