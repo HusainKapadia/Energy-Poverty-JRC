@@ -6,6 +6,7 @@ from datetime import datetime
 import os.path as osp
 import numpy as np
 import pandas as pd
+import joblib
 import glob
 
 
@@ -68,17 +69,6 @@ def all_consumptionf():
 
     return total
 
-def forecast():
-    t = datetime.now()
-    prod = all_production[(all_production.index > t) & (all_production.index < t + timedelta(hours=24))]
-    cons = all_consumption[(all_consumption.index > t) & (all_consumption.index < t + timedelta(hours=24))]
-    surplus = pd.DataFrame(prod.values - cons.values)
-    surplus.index = cons.index
-    surplus.columns = ['Surplus']
-    surplus = surplus.resample('H').mean()
-    surplus.index = list(range(len(surplus)))
-    return surplus
-
 def read_data(household=1, typehh=0):
     if not typehh:
         data = pd.read_csv('useful_no_solar/run_household_{}/power2016Household.csv'.format(household), usecols=[2])
@@ -99,11 +89,32 @@ def read_data(household=1, typehh=0):
     data = data.resample('D').mean()
     return data[-7:]
 
+def forecast():
+    t = datetime.now()
+    prod = all_production[(all_production.index > t) & (all_production.index < t + timedelta(hours=24))]
+    cons = all_consumption[(all_consumption.index > t) & (all_consumption.index < t + timedelta(hours=24))]
+    surplus = pd.DataFrame(prod.values - cons.values)
+    surplus.index = cons.index
+    surplus.columns = ['Surplus']
+    surplus = surplus.resample('H').mean()
+    surplus.index = list(range(len(surplus)))
+    return surplus
+
+
+def infer_next(df, regressor, hours=24, curtime=datetime(2016, 7, 1)):
+    XX = df.loc[curtime:curtime + timedelta(hours=hours)]
+    XX.index
+    preds = xgb.predict(XX.values)
+    return pd.Series(preds, XX.index).to_frame()
+
 # Readjust times
 all_production = all_productionf()
 all_consumption = all_consumptionf()
 all_production.index = all_production.index + timedelta(days=(3*365) + 1)
 all_consumption.index = all_consumption.index + timedelta(days=(3*365) + 1)
+
+xgb = joblib.load( 'inference/xgboost_weather_only.joblib')
+dfX = pd.read_pickle('inference/weather_data_shifted.csv')
 
 app = Flask(__name__) #create the Flask app
 CORS(app)
@@ -116,10 +127,10 @@ def consumer_history():
 def producer_history():
     return read_data(typehh=1).to_json()
 
-
 @app.route('/forecast')
 def forecast_newdata():
-    return forecast().to_json()
+    return infer_next(dfX, xgb, curtime=datetime.now()).to_json()
+    # return forecast().to_json()
 
 @app.route('/newsubmit', methods = ['POST'])
 def api_message():
