@@ -1,16 +1,11 @@
+# Server-side code of Enershare
+``main.py`` constains all the server-side code for the data shown on the front end application. All jupyter-notebooks are used for prototyping and testing ideas and models before deploying it on the server.
+
 # Energy-Poverty-JRC
 Requirements and datasets for Energy Poverty Challenge from Space4Good and the European Commission JRC.
 
 
 ## Requirements
-
-IMPORTANT UPDATE: 
-
-* For the hackathon we will focus on solar energy (NOT wind).
-* Batteries and storage systems will be disregarded (out of scope for simplicity). 
-* Even though the energy marketplace platform should be created for a European geographical scope, for the hackathon we will be using Amsterdam data. 
-
-
 The energy platform should meet the following requierements (from Technical Annex by JRC):
 1.	Marketplace: Enable and register transfers of energy between different private producers, other community consumers and people in need (energy poverty candidates).
 2.	Inventory: Up-to-date inventory of renewable energy production units (solar, wind, etc.), the quality of the power supply.
@@ -32,20 +27,6 @@ Regarding point 5, the computer shouldn’t automatically transfer energy betwee
 
 
 
-## Datasets
-### Runs_households solar and no-solar (consumption and production data)
-
-Useful for point 1-*marketplace* and 4-*weather variations*. Data for energy demand (consumption) per household from a simulation of the ResLoadSIM model.  The data is a set of time resolved energy profiles for 20 different households in Amsterdam. It is provided as 1-minute consumption data for 1 year (2016). 
-
-- **runs_households_no_solar:** energy demand by 20 different consumers. 
-  - Power file: has 1-min consumtion data (column 1= time, column 2= consumption). 
-
-- **runs_households_solar**: energy demand by 20 different consumers WITH solar production. 
-  - Power file: has 1-min consumption data (column 1= time, column 2= consumption). 
-  - Power-Solar-Module file: last column is solar produced power that is used immediately by household. This power production number is a theoretical number, coming from PVGIS (see section below) combining the solar radiation and an optimum installation of the solar panel (southward facing, with an inclination). 
-  - Gridbalance file: is interesting as it has power values from solar production (column 4=power into grid) that can be shared with others, thus  useful value for the marketplace. 
-
-See ResLoadSIM manual (pg. 11-14) for further explanation of the data.
 
 ### Climate/Weather data Amsterdam
 Useful for point 4-*weather variations*. Climate and weather data produced by [Dutch PV Portal by TU Delft](https://www.tudelft.nl/en/eemcs/the-faculty/departments/electrical-sustainable-energy/photovoltaic-materials-and-devices/dutch-pv-portal/) based on measurements by the Koninklijk Nederlands Meteorologisch Instituut (KNMI).
@@ -53,31 +34,3 @@ Useful for point 4-*weather variations*. Climate and weather data produced by [D
 **Climate Data:** Climate dataset for Amsterdam (closest KNMI station in Schiphol). A dataset of one year constructed from weather data averaged over a multitude of years (1991-2018), with a one hour time resolution. Displays the average hourly values of weather parameters: irradiation, temperature, wind, cloud, pressure, rainfall, irradiance, elevation, azimuth. The climate database is dynamically updated. Every hour, the hourly average of the real-time weather measurements is added to the climate database by making a weighted average with the climate parameter values in the historical database.
 
 **Weather data**: the weather of today and yesterday with a 10-minute time resolution. Not provided in this repository. Head over to the [Dutch PV website](https://www.tudelft.nl/en/eemcs/the-faculty/departments/electrical-sustainable-energy/photovoltaic-materials-and-devices/dutch-pv-portal/) to download the data relevant for today.
-
-### PVGIS  (solar weather data and solar energy potential)
-Useful for point 3-*potential*. The European Commission developed the tool PVGIS (Geographical Assessment of Solar Resource and Performance of Photovoltaic Technology). It contains maps, interactive tools and data for solar energy. First get familiar with what is offered in the website [here](http://re.jrc.ec.europa.eu/pvg_static/en/intro_tools.html).
-
-**Maps photovoltaic electricity potential**: 500m resolution map for solar energy potential. Go [here](http://re.jrc.ec.europa.eu/pvg_download/map_index.html).
-
-**Spatial solar radiation data**: Several solar radiation datasets from different remote sensing data sources. Go [here](http://re.jrc.ec.europa.eu/pvg_download/data_download.html).
-
-
-### Earth Observation Data
-**EO-Browser by Sentinel Hub:** user-friendly way to download and visualize Earth Obervation data from Sentinel, Landsat, MODIS satellites. Go [here](https://apps.sentinel-hub.com/eo-browser/), you need to set up an account.
-
-**Triplesat:** 0.8 resolution satellite data for The Netherlands. Go [here](https://www.satellietdataportaal.nl/)
-
-### Gemeente Amsterdam Data (solar panel inventory and rooftop potential)
-Context for point 2-*inventory* and point 3-*potential*. 'Extra' datasets by the Gemeente Amsterdam are shared for context. They are considered 'extra' as the marketplace doesn't need to upload an inventory of the existing solar panels in a city, this will instead be determined by the registered users (see requirements/comments point 2). 
-
-**Solar panels in Amsterdam:** Go [here](https://maps.amsterdam.nl/zonnepanelen/?LANG=en).
-
-**Rooftop potential Amsterdam:** 0.5 resolution data. Go [here](https://www.zonatlas.nl/amsterdam/).
-
-
-
-
-
-
-
-
