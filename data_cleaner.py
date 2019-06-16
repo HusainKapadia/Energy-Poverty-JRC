@@ -1,3 +1,7 @@
+'''
+Extract useful information from provided data
+'''
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,7 +11,7 @@ import os
 solar_dir = './run_household_solar/*'
 no_solar_dir = './runs_households_no_solar/*'
 
-# change the name for different directory
+# Change the name for different directory
 household_list = glob.glob(no_solar_dir)
 # print(len(household_list))
 for item in household_list:
@@ -15,6 +19,7 @@ for item in household_list:
         household_list.remove(item)
 
 
+# Clean Grid Balance data
 def clean_grid_bal(household_list):
     name = './gridbalance.2016'
 
@@ -47,7 +52,7 @@ def clean_grid_bal(household_list):
 
     # plt.show()
 
-
+# Clean Household consumption Data
 def clean_power_household(household_list, solar=True):
     name = './power.2016.Household.real'
 
@@ -85,7 +90,7 @@ def clean_power_household(household_list, solar=True):
 
     # plt.show()
 
-
+# Extract solar module data
 def clean_power_solarmod(household_list):
     name = './power.2016.Solar-Module.real'
 
@@ -119,7 +124,7 @@ def clean_power_solarmod(household_list):
 
     #plt.show()
 
-
+# Extract info from yearly consumption file summary
 def clean_consumption(household_list, solar=True):
     name = f'consumption.2016'
 
@@ -153,12 +158,12 @@ def clean_consumption(household_list, solar=True):
 
 
 
-# clean_grid_bal(household_list)
+clean_grid_bal(household_list)
 
 # if solar = True, directly use household_list, if False, use household_list[1:], it still keeps 1 cfg.log file here
-# idk why
-# clean_power_household(household_list[1:], solar=False)
-
-# clean_power_solarmod(household_list)
+# Temporary fix for now
+clean_power_household(household_list[1:], solar=False)
 
 clean_consumption(household_list[1:], solar=False)
+
+clean_power_solarmod(household_list)
