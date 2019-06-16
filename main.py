@@ -50,12 +50,11 @@ def all_consumptionf():
         if 'cfg' in item:
             household_list2.remove(item)
 
-    for item in household_list:
+    for item in household_list2:
         household = osp.join(item, 'power2016Household.csv')
         householddata = pd.read_csv(household)
         #print(householddata['Power consumed'][:1000])
         consumption = consumption + householddata['Power consumed'][:]
-
 
     dt = [datetime(2016, 1, 1)]
     for _ in range(len(consumption)-1): 
@@ -68,6 +67,7 @@ def all_consumptionf():
     total.columns = ['Power consumed']
 
     return total
+
 
 def read_data(household=1, typehh=0):
     if not typehh:
@@ -88,6 +88,7 @@ def read_data(household=1, typehh=0):
     data = data[data.index < t]
     data = data.resample('D').mean()
     return data[-7:]
+
 
 def forecast():
     t = datetime.now()
@@ -119,6 +120,7 @@ def infer_next(df, regressor, hours=24, curtime=datetime(2016, 7, 1)):
     surplus.index = list(range(len(surplus)))
     return surplus
 
+
 # Readjust times
 all_production = all_productionf()
 all_consumption = all_consumptionf()
@@ -128,21 +130,25 @@ all_consumption.index = all_consumption.index + timedelta(days=(3*365) + 1)
 xgb = joblib.load( 'inference/xgboost_weather_only.joblib')
 dfX = pd.read_pickle('inference/weather_data_shifted.csv')
 
-app = Flask(__name__) #create the Flask app
+app = Flask(__name__)   # create the Flask app
 CORS(app)
+
 
 @app.route('/consumer_history')
 def consumer_history():
     return read_data().to_json()
 
+
 @app.route('/producer_history')
 def producer_history():
     return read_data(typehh=1).to_json()
+
 
 @app.route('/forecast')
 def forecast_newdata():
     return infer_next(dfX, xgb, curtime=datetime.now()).to_json()
     # return forecast().to_json()
+
 
 @app.route('/newsubmit', methods = ['POST'])
 def api_message():
@@ -150,6 +156,7 @@ def api_message():
         return json.dumps(['testing'])
     else:
         return "415 Unsupported Media Type ;)"
-        
+
+
 if __name__ == '__main_':
     app.run(debug=True, port=5000) #run app in debug mode on port 5000
