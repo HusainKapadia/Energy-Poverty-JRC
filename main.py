@@ -103,10 +103,22 @@ def forecast():
 
 
 def infer_next(df, regressor, hours=24, curtime=datetime(2016, 7, 1)):
+    curtime = curtime - timedelta(days=(3*365)+1)
     XX = df.loc[curtime:curtime + timedelta(hours=hours)]
     XX.index
     preds = xgb.predict(XX.values)
-    return pd.Series(preds, XX.index).to_frame()
+    XX.index = XX.index + timedelta(days=(3*365) + 1)
+    prod = pd.Series(preds, XX.index).to_frame()
+
+    t = datetime.now()
+    cons = all_consumption[(all_consumption.index > t) & (all_consumption.index < t + timedelta(hours=23))]
+    cons = cons.resample('H').mean()
+
+    surplus = pd.DataFrame(prod.values - cons.values)
+    surplus.index = cons.index
+    surplus.columns = ['Surplus']
+    surplus.index = list(range(len(surplus)))
+    return surplus
 
 
 # Readjust times
