@@ -68,7 +68,7 @@ def all_consumptionf():
 
     return total
 
-def forcast():
+def forecast():
     t = datetime.now()
     prod = all_production[(all_production.index > t) & (all_production.index < t + timedelta(hours=24))]
     cons = all_consumption[(all_consumption.index > t) & (all_consumption.index < t + timedelta(hours=24))]
@@ -76,6 +76,7 @@ def forcast():
     surplus.index = cons.index
     surplus.columns = ['Surplus']
     surplus = surplus.resample('H').mean()
+    surplus.index = list(range(len(surplus)))
     return surplus
 
 def read_data(household=1, typehh=0):
@@ -123,7 +124,8 @@ def producer_history():
     return read_data(typehh=1).to_json()
 
 
-def forecast():
+@app.route('/forecast')
+def forecast_newdata():
     return forecast().to_json()
 
 @app.route('/newsubmit', methods = ['POST'])
