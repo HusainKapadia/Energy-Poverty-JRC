@@ -1,5 +1,4 @@
 from flask import Flask, request, json #import main Flask class and request object
-from forex_python.converter import CurrencyRates
 from flask_cors import CORS
 from datetime import timedelta
 from datetime import datetime
