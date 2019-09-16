@@ -1,5 +1,7 @@
 # Server-side code of Enershare
-``main.py`` constains all the server-side code for the data shown on the front end application. All jupyter-notebooks are used for prototyping and testing ideas and models before deploying it on the server.
+``main.py`` constains all the server-side code for the data shown on the front end application. All jupyter-notebooks are used for prototyping and testing ideas and models before deploying it on the server. For running the server side scripts first install all the packages in the ``requirement.txt`` file. After that you can start the server with:<br>
+```export FLASK_APP=main.py```<br>
+```flask run```
 
 # Energy-Poverty-JRC
 Requirements and datasets for Energy Poverty Challenge from Space4Good and the European Commission JRC.
