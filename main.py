@@ -1,72 +1,50 @@
-from flask import Flask, request, json #import main Flask class and request object
+from flask import Flask, request, jsonify #import main Flask class and request object
 from flask_cors import CORS
 from datetime import timedelta
 from datetime import datetime
+import time
 import os.path as osp
 import numpy as np
 import pandas as pd
-import joblib
 import glob
+import random
+import pandas as pd
+from datetime import datetime
+from datetime import timedelta
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
+from xgboost import XGBRegressor
 
 
-def all_productionf():
-    # Read all folders and load the power consumption of all households into one frame
-    dfs = []
-    for p in glob.glob('useful_solar/*'):
-        grid_balance = pd.read_csv(osp.join(p, 'gridbalance2016.csv'), usecols=[0, 3], index_col=0)
-        solar_module = pd.read_csv(osp.join(p, 'power2016_solar_module.csv'), usecols=[0, 3], index_col=0)
-        production = grid_balance['Power into grid'] + solar_module['Solar Power used']
-        dfs.append(production.to_frame())
+def infer_monthly_usage():
+    # Load dataset
+    fulldata = pd.read_pickle('prod/weather_prod_cons.pkl')
+    n_prosumers = 20
+    X = fulldata.copy().dropna()
+    y_prod = X.OverallProd
+    y_cons = X.Consumption
+    X = X.drop(columns=['OverallProd', 'Consumption'])
 
-    dfs = pd.concat(dfs, axis=1)
-    dfs.columns = ['production_h' + p.split('_')[-1] for p in glob.glob('useful_solar/*')]
-    dt = [datetime(2016, 1, 1)]
-    for _ in range(len(dfs)-1): 
-        dt.append(dt[-1] + timedelta(seconds=60))
+    # Prepare Data, Train XgBoost Regressor and Fit model
+    xtrain, xtest, ytrain, ytest = train_test_split(X, y_prod, shuffle=False)
+    reg_prod = XGBRegressor()
+    reg_prod.fit(xtrain.values, ytrain)
+    prod_preds = pd.Series(reg_prod.predict(fulldata.drop(columns=['OverallProd', 'Consumption']).values), index=fulldata.index)
 
-    dfs['Date'] = dt
-    dfs.set_index('Date', drop=True, inplace=True)
-    overall_production = dfs.sum(axis=1)
-    overall_production = overall_production.to_frame()
-    overall_production.columns = ['OverallProd']
-    return overall_production
+    xtrain, xtest, ytrain, ytest = train_test_split(X, y_cons, shuffle=False)
+    reg_cons = XGBRegressor()
+    reg_cons.fit(xtrain.values, ytrain)
+    cons_preds = pd.Series(reg_cons.predict(fulldata.drop(columns=['OverallProd', 'Consumption']).values), index=fulldata.index)
 
-
-def all_consumptionf(): 
-    # Households Total comsumption
-    base_solar = osp.join('useful_solar')
-    household_list = glob.glob(f'{base_solar}/*')
-    consumption = [0] * 527040
-    for item in household_list:
-        household = osp.join(item, 'power2016Household.csv')
-        householddata = pd.read_csv(household)
-        #print(householddata['Power consumed'][:1000])
-        consumption = consumption + householddata['Power consumed'][:]
-
-    base_no_solar = osp.join('useful_no_solar')
-    household_list2 = glob.glob(f'{base_no_solar}/*')
-    for item in household_list2:
-        if 'cfg' in item:
-            household_list2.remove(item)
-
-    for item in household_list2:
-        household = osp.join(item, 'power2016Household.csv')
-        householddata = pd.read_csv(household)
-        #print(householddata['Power consumed'][:1000])
-        consumption = consumption + householddata['Power consumed'][:]
-
-    dt = [datetime(2016, 1, 1)]
-    for _ in range(len(consumption)-1): 
-        dt.append(dt[-1] + timedelta(seconds=60))
-
-    total = consumption.to_frame()
-    total['date'] = dt
-
-    total.set_index('date', drop=True, inplace=True)
-    total.columns = ['Power consumed']
-
-    return total
-
+    # Resample to give prediction per month
+    res = pd.DataFrame({'Production': prod_preds.resample('M', how='sum'), 
+                        'Consumption': cons_preds.resample('M', how='sum')}).sort_index() 
+    res['Deficit'] = res.Consumption - res.Production
+    res['ProsumersNeeded'] =  round(res.Deficit/(res.Production/n_prosumers)).astype(int)
+    res['Coverage'] =  round((res.Production*100)/res.Consumption).astype(int)
+    res.index = res.index.month_name()
+    res = res[['ProsumersNeeded', 'Coverage']]
+    return res
 
 def read_data(household=1, typehh=0):
     if not typehh:
@@ -74,8 +52,8 @@ def read_data(household=1, typehh=0):
         data.columns = ['PowerConsumed']
     else:
         data = pd.read_csv('useful_solar/run_household_solar_{}/power2016Household.csv'.format(household), usecols=[2])
-        sol = pd.read_csv('useful_solar/run_household_solar_{}/power2016_solar_module.csv'.format(1), usecols=[3])
-        hh = pd.read_csv('useful_solar/run_household_solar_{}/gridbalance2016.csv'.format(1), usecols=[3])
+        sol = pd.read_csv('useful_solar/run_household_solar_{}/power2016_solar_module.csv'.format(household), usecols=[3])
+        hh = pd.read_csv('useful_solar/run_household_solar_{}/gridbalance2016.csv'.format(household), usecols=[3])
         data.columns = ['PowerConsumed']
         data['Produced'] = sol.values + hh.values
     base = datetime(2016, 1, 1)
@@ -85,77 +63,41 @@ def read_data(household=1, typehh=0):
     t = datetime.now()
     data.index = data.index + timedelta(days=(3*365) + 1) # Shift values 3 years
     data = data[data.index < t]
-    data = data.resample('D').mean()
-    return data[-7:]
+    data = data.resample('D').sum()/100
+    return data
 
+def read_all_prosumers():
+    prosumer_data = {}
+    for i in range(1, 21):
+        print('Reading producer {}/20'.format(i))
+        p = read_data(household=i, typehh=1)
+        prosumer_data[prosumers[i-1]] = [sum(p['Produced']), sum(p['PowerConsumed']), consumersp[i-1]]
+    return prosumer_data
 
-def forecast():
-    t = datetime.now()
-    prod = all_production[(all_production.index > t) & (all_production.index < t + timedelta(hours=24))]
-    cons = all_consumption[(all_consumption.index > t) & (all_consumption.index < t + timedelta(hours=24))]
-    surplus = pd.DataFrame(prod.values - cons.values)
-    surplus.index = cons.index
-    surplus.columns = ['Surplus']
-    surplus = surplus.resample('H').mean()
-    surplus.index = list(range(len(surplus)))
-    return surplus
+random.seed(42)
 
-
-def infer_next(df, regressor, hours=24, curtime=datetime(2016, 7, 1)):
-    curtime = curtime - timedelta(days=(3*365)+1)
-    XX = df.loc[curtime:curtime + timedelta(hours=hours)]
-    XX.index
-    preds = xgb.predict(XX.values)
-    XX.index = XX.index + timedelta(days=(3*365) + 1)
-    prod = pd.Series(preds, XX.index).to_frame()
-
-    t = datetime.now()
-    cons = all_consumption[(all_consumption.index > t) & (all_consumption.index < t + timedelta(hours=23))]
-    cons = cons.resample('H').mean()
-
-    surplus = pd.DataFrame(prod.values - cons.values)
-    surplus.index = cons.index
-    surplus.columns = ['Surplus']
-    surplus.index = list(range(len(surplus)))
-    return surplus
-
-
-# Readjust times
-all_production = all_productionf()
-all_consumption = all_consumptionf()
-all_production.index = all_production.index + timedelta(days=(3*365) + 1)
-all_consumption.index = all_consumption.index + timedelta(days=(3*365) + 1)
-
-xgb = joblib.load( 'inference/xgboost_weather_only.joblib')
-dfX = pd.read_pickle('inference/weather_data_shifted.csv')
+prosumers = ['London Webster', 'Quincy Brooks', 'Jazmine Barry', 'Megan Knight', 'Journey Dyer', 'Jazmin Glover', 'Alison Zimmerman', 'Tommy Hale', 'Kobe Fields', 'Jamison Davila', 'Areli James', 'Celeste Russo', 'Kaleb Cole', 'Braden Woodward', 'Rene Bradshaw', 'Brycen Mcknight', 'Alexandria Wood', 'Kaylyn Harper', 'Ean Mullins', 'Cindy Yu']
+consumersp = [random.randint(2, 8) for _ in range(20)]
+res = infer_monthly_usage().T.to_dict()
+print('Calculating leaderboard...')
+all_production = read_all_prosumers()
 
 app = Flask(__name__)   # create the Flask app
 CORS(app)
 
-
-@app.route('/consumer_history')
-def consumer_history():
-    return read_data().to_json()
-
-
 @app.route('/producer_history')
 def producer_history():
-    return read_data(typehh=1).to_json()
+    data = read_data(household=2, typehh=1)['Produced']
+    dates = [time.mktime(i.timetuple())*1000 for i in data.index]
+    return jsonify(list(zip(dates, data)))
 
+@app.route('/leaderboard')
+def leaderboard():
+    return jsonify(all_production)
 
-@app.route('/forecast')
-def forecast_newdata():
-    return infer_next(dfX, xgb, curtime=datetime.now()).to_json()
-    # return forecast().to_json()
+@app.route('/coverage')
+def coverage():
+    return jsonify(res)
 
-
-@app.route('/newsubmit', methods = ['POST'])
-def api_message():
-    if request.headers['Content-Type'] == 'application/json':
-        return json.dumps(['testing'])
-    else:
-        return "415 Unsupported Media Type ;)"
-
-
-if __name__ == '__main_':
+if __name__ == '__main__':
     app.run(debug=True, port=5000) #run app in debug mode on port 5000
